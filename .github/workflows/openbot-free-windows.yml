@@ -1,0 +1,92 @@
+name: OpenBot-free Windows
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openbot-free-windows-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Validar OpenBot-free no Windows x64
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Obter código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verificar segredos nas alterações
+        env:
+          SCAN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          $base = $env:SCAN_BASE
+          if (-not $base -or $base -match '^0+$') {
+            # Baseline da primeira publicação do fork para execuções sem commit anterior.
+            $base = 'bc424a7e691bdb905ec9c36be227e5a5bc109e7b'
+          }
+          if ($base -notmatch '^[0-9a-f]{40}$') {
+            throw 'A base da verificação de segredos precisa ser um SHA completo.'
+          }
+          git cat-file -e "$($base)^{commit}"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $scannerDir = Join-Path $env:RUNNER_TEMP ('openbot-gitleaks-' + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $scannerDir | Out-Null
+          $archive = Join-Path $scannerDir 'gitleaks_8.30.1_windows_x64.zip'
+          $digest = 'd29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e'
+          Invoke-WebRequest -Uri 'https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_x64.zip' -OutFile $archive
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash -ine $digest) {
+            throw 'O arquivo do Gitleaks não corresponde ao SHA-256 fixado.'
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath $scannerDir
+          $config = Join-Path $scannerDir 'config.toml'
+          $ignore = Join-Path $scannerDir '.gitleaksignore'
+          Set-Content -LiteralPath $config -Value @('[extend]', 'useDefault = true')
+          Set-Content -LiteralPath $ignore -Value ''
+          & (Join-Path $scannerDir 'gitleaks.exe') git --no-banner --redact=100 --config $config --gitleaks-ignore-path $ignore --ignore-gitleaks-allow "--log-opts=--diff-merges=first-parent $base..HEAD" .
+
+      - name: Configurar Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.3'
+          no-cache: true
+
+      - name: Instalar dependências fixadas
+        run: bun install --frozen-lockfile
+
+      - name: Gerar configuração local do aplicativo
+        run: bun --no-env-file scripts/generate-app-config.ts
+
+      - name: Verificar TypeScript do servidor local
+        run: bun x --no-install tsc --project local-backend/tsconfig.json
+
+      - name: Verificar TypeScript do aplicativo
+        run: bun x --no-install tsc --project app/tsconfig.json
+
+      - name: Verificar Biome
+        run: bun x --no-install biome check --error-on-warnings local-backend app/src/local scripts/build-openbot-exe.ts scripts/test-openbot-exe.ts package.json
+
+      - name: Executar testes locais e do Edge
+        env:
+          OPENBOT_TEST_EDGE: '1'
+        run: bun test --dots ./local-backend ./api/client-boundary.test.ts
+
+      - name: Compilar executável portátil
+        run: bun run local:exe
+
+      - name: Validar executável extraído do ZIP
+        run: bun --no-env-file scripts/test-openbot-exe.ts .openbot/openbot-windows-x64

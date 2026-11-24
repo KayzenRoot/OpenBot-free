@@ -18,7 +18,7 @@ bun run local:exe
 
 Abra `OpenBotLocal.exe` em `.openbot/openbot-windows-x64` com a pasta `resources` ao lado. Acesse [OpenBot local](http://127.0.0.1:3011/) e use o token mostrado no terminal. [Guia do perfil, configuração e compilação](docs/openbot-local-plan.md)
 
-[Plano de melhorias e critérios de aceite](docs/roadmap-openbot-free.md)
+[Plano de melhorias e critérios de aceite](docs/roadmap-openbot-free.md) · [Validação Windows](docs/local-windows-ci.md)
 
 O histórico do template e seu [aviso MIT](LICENSE) são preservados. A documentação original abaixo descreve também serviços distribuídos separadamente por seus respectivos mantenedores.
 
