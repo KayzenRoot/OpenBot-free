@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>OpenBotFreeSetup</AssemblyName>
+    <Version Condition="'$(AppVersion)' != ''">$(AppVersion)</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(PayloadZip)' != ''">
+    <EmbeddedResource Include="$(PayloadZip)" LogicalName="OpenBotFree.Payload.zip" />
+  </ItemGroup>
+  <Target Name="RequireInstallerPayload" BeforeTargets="Publish" Condition="'$(PayloadZip)' == '' OR !Exists('$(PayloadZip)')">
+    <Error Text="Supply the installer payload with -p:PayloadZip=&lt;absolute zip path&gt;." />
+  </Target>
+</Project>

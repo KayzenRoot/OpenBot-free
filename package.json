@@ -16,6 +16,7 @@
     "local:build": "bun run --filter app build:local",
     "local:package": "bun run local:build && bun scripts/package-openbot-local.ts",
     "local:exe": "bun run local:build && bun --no-env-file scripts/build-openbot-exe.ts",
+    "local:desktop": "bun --no-env-file scripts/build-openbot-desktop.ts",
     "local:start": "bun local-backend/server.ts",
     "generate:app-config": "bun --env-file=.env scripts/generate-app-config.ts",
     "format": "bunx biome format --write .",
