@@ -20,6 +20,8 @@ egress.env
 node_modules
 **/dist/
 /app/dist-local/
+/windows-local/**/bin/
+/windows-local/**/obj/
 app/src/lib/generated/application-config.ts
 .logs/
 .demo-logs/
