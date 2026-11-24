@@ -11,7 +11,7 @@ internal sealed class DesktopWindow : Form
     private readonly string? testProfile;
     private readonly BackendProcess backend = new();
     private readonly CancellationTokenSource lifetime = new();
-    private readonly WebView2 browser = new() { Dock = DockStyle.Fill, Visible = false };
+    private readonly WebView2 browser = new() { Dock = DockStyle.Fill };
     private readonly Label status = new()
     {
         Dock = DockStyle.Fill,
@@ -39,6 +39,7 @@ internal sealed class DesktopWindow : Form
         var content = new Panel { Dock = DockStyle.Fill };
         content.Controls.Add(browser);
         content.Controls.Add(status);
+        status.BringToFront();
         var sessionMenu = new ToolStripMenuItem("Sessão");
         sessionMenu.DropDownItems.Add(renewSession);
         var menu = new MenuStrip();
@@ -81,11 +82,10 @@ internal sealed class DesktopWindow : Form
 
             failureStage = "session";
             await AuthenticateAsync(cancellationToken);
+            status.Visible = false;
             failureStage = "navigation";
             await NavigateToWorkspaceAsync(cancellationToken);
 
-            status.Visible = false;
-            browser.Visible = true;
             renewSession.Enabled = true;
             if (testProfile is not null)
             {
@@ -103,10 +103,15 @@ internal sealed class DesktopWindow : Form
         }
         catch (WebView2RuntimeNotFoundException)
         {
+            browser.Visible = false;
+            status.Visible = true;
             status.Text = "Instale o Microsoft Edge WebView2 Runtime e abra o OpenBot-free novamente.";
         }
-        catch (Exception)
+        catch (Exception error)
         {
+            failureStage = $"{failureStage}-{error.GetType().Name}-{error.HResult:X8}";
+            browser.Visible = false;
+            status.Visible = true;
             status.Text = "O OpenBot-free não conseguiu iniciar. Feche e abra o aplicativo novamente.";
         }
         finally
