@@ -6,7 +6,8 @@ import {
   readdir,
   readFile,
   realpath,
-  rm,
+  rmdir,
+  unlink,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, parse, relative, resolve, sep } from "node:path";
@@ -124,6 +125,22 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string) {
     timer = setTimeout(() => reject(new Error(`${label} timed out.`)), ms);
   });
   return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+}
+
+async function removeScratch(directory: string, root: string) {
+  const canonical = await realpath(directory);
+  if (
+    canonical !== directory ||
+    (directory !== root && !directory.startsWith(`${root}${sep}`))
+  ) {
+    throw new Error("Unexpected release smoke cleanup path.");
+  }
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) await removeScratch(path, root);
+    else await unlink(path);
+  }
+  await rmdir(directory);
 }
 
 async function isolatedEnvironment(root: string) {
@@ -408,20 +425,24 @@ async function main() {
       if (child.exitCode === null) child.kill();
       await withTimeout(child.exited, 10_000, "OpenBot shutdown");
     }
-    console.log(
-      "Windows executable smoke passed: SHA-256, ZIP relocation, embedded frontend, protected studio, and Edge PNG export.",
-    );
   } finally {
     if (
       dirname(scratch) !== trustedTemp ||
-      !parse(scratch).base.startsWith(scratchPrefix) ||
-      (await realpath(scratch)) !== scratch
+      !parse(scratch).base.startsWith(scratchPrefix)
     )
       console.warn(
         "The smoke directory no longer resolves to the isolated path and was retained.",
       );
-    else await rm(scratch, { recursive: true, force: true, maxRetries: 3 });
+    else
+      await removeScratch(scratch, scratch).catch(() => {
+        console.warn(
+          "Windows retained some isolated smoke files under its temporary directory.",
+        );
+      });
   }
+  console.log(
+    "Windows executable smoke passed: SHA-256, ZIP relocation, embedded frontend, protected studio, and Edge PNG export.",
+  );
 }
 
 await main();
