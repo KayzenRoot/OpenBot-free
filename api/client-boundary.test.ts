@@ -72,7 +72,8 @@ function* sourceFiles(path: string, extensions: RegExp): Generator<string> {
     const child = join(path, name);
     if (statSync(join(REPO, child)).isDirectory())
       yield* sourceFiles(child, extensions);
-    else if (extensions.test(name) && !IS_TEST.test(name)) yield child;
+    else if (extensions.test(name) && !IS_TEST.test(name))
+      yield child.replaceAll("\\", "/");
   }
 }
 

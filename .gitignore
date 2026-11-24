@@ -19,6 +19,7 @@ egress.env
 # leaves three links git will happily commit. That happened.
 node_modules
 **/dist/
+/app/dist-local/
 app/src/lib/generated/application-config.ts
 .logs/
 .demo-logs/

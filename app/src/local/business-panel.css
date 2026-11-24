@@ -1,0 +1,71 @@
+.business-form,
+.business-confirm,
+.business-item {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.business-form label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.business-form select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--input);
+  border-radius: 7px;
+  background: var(--background);
+}
+
+.business-item,
+.business-confirm {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.business-item summary,
+.business-confirm summary {
+  cursor: pointer;
+}
+
+.business-item button {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.business-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 8px;
+}
+
+.business-table {
+  max-height: 20rem;
+  overflow: auto;
+}
+
+.business-table table {
+  width: 100%;
+  text-align: left;
+}
+
+.business-table caption {
+  font-weight: 600;
+  text-align: left;
+}
+
+.business-table th,
+.business-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.business-error p {
+  color: var(--destructive);
+}

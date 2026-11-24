@@ -1,0 +1,239 @@
+.learning-page {
+  grid-row: span 2;
+  min-height: 0;
+  overflow: auto;
+}
+
+.learning-content {
+  display: grid;
+  width: min(100% - 48px, 850px);
+  gap: 16px;
+  margin-inline: auto;
+  padding-block: 26px 40px;
+}
+
+.learning-heading h1 {
+  margin-bottom: 3px;
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+}
+
+.learning-heading p,
+.learning-block > p {
+  color: var(--muted-foreground);
+}
+
+.learning-feedback:empty {
+  display: none;
+}
+
+.learning-feedback [role="status"] {
+  color: var(--success);
+}
+
+.learning-block {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background-color: var(--card);
+}
+
+.learning-block h2 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.learning-evidence-forms {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.learning-evidence-forms form {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  align-content: start;
+  justify-items: start;
+}
+
+.learning-evidence-forms label,
+.learning-selector legend {
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.learning-evidence-forms textarea,
+.learning-evidence-forms input[type="file"] {
+  width: 100%;
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid var(--input);
+  border-radius: 7px;
+  background: var(--background);
+}
+
+.learning-evidence-forms textarea {
+  resize: vertical;
+}
+
+.profile-form textarea,
+.profile-form #proposal-title {
+  width: 100%;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid var(--input);
+  border-radius: 7px;
+  background: var(--background);
+}
+
+.profile-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.local-browser-screen {
+  width: 100%;
+  max-height: 540px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--background);
+}
+
+.learning-evidence-forms input::file-selector-button {
+  padding: 2px 7px;
+  margin-right: 7px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  cursor: pointer;
+}
+
+.learning-recorder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  padding-block: 10px 2px;
+  border-top: 1px solid var(--border);
+}
+
+.learning-recorder p {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.learning-selector {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding-block: 6px;
+}
+
+.learning-evidence-row {
+  display: grid;
+  grid-template-columns: auto 5.5em minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.learning-evidence-row:hover {
+  background: var(--secondary);
+}
+
+.learning-evidence-row span:last-child {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.learning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 8px;
+}
+
+.learning-block .learning-proposal-row {
+  min-width: 0;
+  justify-content: space-between;
+}
+
+.learning-block .learning-proposal-row[aria-pressed="true"] {
+  background-color: var(--sidebar-accent);
+}
+
+.learning-proposal-row span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.learning-proposal-row span:last-child,
+.learning-review-title > span,
+.learning-skill summary > span {
+  flex: none;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.learning-review,
+.learning-skill {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+}
+
+.learning-review-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 9px;
+  margin-bottom: 7px;
+}
+
+.learning-review h3 {
+  font-weight: 570;
+}
+
+.learning-review pre,
+.learning-skill pre {
+  max-height: 24rem;
+  overflow: auto;
+  margin-block: 8px;
+  padding: 9px;
+  border-radius: 6px;
+  background: var(--secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.learning-skill summary {
+  cursor: pointer;
+}
+
+.learning-skill summary > span {
+  margin-inline-start: 7px;
+}
+
+@media (width <= 650px) {
+  .learning-content {
+    width: calc(100% - 28px);
+  }
+
+  .learning-evidence-forms {
+    grid-template-columns: 1fr;
+  }
+}

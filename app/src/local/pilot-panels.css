@@ -1,0 +1,81 @@
+.pilot-output {
+  max-height: 27rem;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pilot-details {
+  display: grid;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}
+
+.pilot-details dt {
+  font-weight: 600;
+}
+
+.pilot-details dd {
+  margin-bottom: 8px;
+}
+
+.pilot-select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--input);
+  border-radius: 7px;
+  background: var(--background);
+}
+
+.business-form label.pilot-check {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+}
+
+.pilot-preview {
+  width: min(100%, 380px);
+  min-height: 360px;
+  max-height: 560px;
+  margin-inline: auto;
+  padding: 20px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--background);
+  font-family: Georgia, serif;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.pilot-preview p {
+  white-space: pre-wrap;
+  margin-block: 1rem;
+}
+
+.pilot-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.pilot-asset {
+  display: grid;
+  gap: 7px;
+}
+
+.pilot-asset summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+@media (max-width: 780px) {
+  .pilot-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

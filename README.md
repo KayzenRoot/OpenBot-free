@@ -1,3 +1,29 @@
+# OpenBot-free
+
+Edição local e independente do template [OpenBot](https://github.com/CopilotKit/OpenBot), voltada a programação, produção de ebooks e vendas orgânicas no Windows. O servidor local guarda o perfil em SQLite e funciona sem o serviço CopilotKit Intelligence. A inferência configurada no OpenCode e as integrações com serviços externos usam suas respectivas conexões.
+
+- **Programação.** O DeepSeek V4.1 Flash propõe alterações em arquivos selecionados. O OpenBot oferece diff, patch e execução aprovada de testes Bun em contêiner local sem rede.
+- **Ebooks e campanhas.** Estúdio com projetos versionados, exportação EPUB e PDF, amostra, capa, página de venda e relatórios CSV com origem por campanha.
+- **Bots.** Modelos de Programador, Editor de ebooks e Analista de vendas, com simulação antes da ativação, fila recuperável e revisão de propostas de aprendizado editorial.
+
+## Compilar e executar no Windows
+
+Use Windows x64 com Git, Edge e Bun 1.4.3. Os testes isolados de projetos exigem um executor de contêiner local compatível. Configure o OpenCode Go para programação e a conexão de uso geral do OpenCode Console para geração editorial.
+
+```powershell
+bun install --frozen-lockfile
+bun --no-env-file scripts/generate-app-config.ts
+bun run local:exe
+```
+
+Abra `OpenBotLocal.exe` em `.openbot/openbot-windows-x64` com a pasta `resources` ao lado. Acesse [OpenBot local](http://127.0.0.1:3011/) e use o token mostrado no terminal. [Guia do perfil, configuração e compilação](docs/openbot-local-plan.md)
+
+O histórico do template e seu [aviso MIT](LICENSE) são preservados. A documentação original abaixo descreve também serviços distribuídos separadamente por seus respectivos mantenedores.
+
+---
+
+## Documentação do projeto original
+
 <div align="center">
 
 <img src="app/src/assets/openbot-logo.png" alt="" width="72">

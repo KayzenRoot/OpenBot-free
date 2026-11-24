@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "bun --bun node_modules/vite/bin/vite.js build",
+    "build:local": "bun --bun node_modules/vite/bin/vite.js build --config vite.local.config.ts",
     "dev": "bun --bun node_modules/vite/bin/vite.js",
     "serve": "bun scripts/serve-or-build.ts && bun serve.ts",
     "prebuild": "bun run --cwd .. generate:app-config",

@@ -149,6 +149,12 @@ export const STAYS: { prefix: string; rule: Rule; why: string }[] = [
 export const ALLOWED: Allowed[] = [
   // The transports every request goes through.
   {
+    file: "app/src/local/api.ts",
+    what: /^(fetch\(\)|\/api\/local\{\})$/,
+    rule: "transport",
+    why: "sends same-origin requests to the separate loopback install with its local session cookie",
+  },
+  {
     file: "app/src/lib/client.ts",
     what: "fetch()",
     rule: "transport",
