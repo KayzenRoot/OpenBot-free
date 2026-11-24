@@ -99,7 +99,27 @@ const errorMessages = new Map([
   ["BOT_CHAPTER_REQUIRED", "Escolha um capítulo já salvo no Estúdio."],
   [
     "BOT_STAGE_INTERRUPTED",
-    "A etapa anterior foi interrompida. Confira o estado antes de continuar.",
+    "A etapa anterior foi interrompida antes de registrar o resultado.",
+  ],
+  [
+    "BOT_STAGE_OUTCOME_UNKNOWN",
+    "O resultado da etapa é incerto e precisa ser conferido.",
+  ],
+  [
+    "BOT_WORKFLOW_CHANGED",
+    "O fluxo mudou desde o início da execução. Revise a etapa antes de prosseguir.",
+  ],
+  [
+    "BOT_STAGE_ATTEMPTS_EXHAUSTED",
+    "O limite de tentativas desta etapa foi atingido.",
+  ],
+  [
+    "BOT_STAGE_FAILED",
+    "A etapa terminou com erro. Consulte o histórico da execução.",
+  ],
+  [
+    "LOCAL_SHUTDOWN_CONFIRMATION_REQUIRED",
+    "Confirme o encerramento do OpenBot.",
   ],
   [
     "BOT_PROJECT_RESTORE_REVIEW",

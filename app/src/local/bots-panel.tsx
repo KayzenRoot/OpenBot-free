@@ -42,6 +42,7 @@ type Job = {
     | "cancelled";
   currentStage: string | null;
   attempt: number;
+  nextAttemptAt: string | null;
   control: "pause" | "cancel" | null;
   error: string | null;
   createdAt: string;
@@ -68,11 +69,32 @@ type Event = {
 };
 type Book = { id: string; title: string; revision: number };
 type Action = (work: () => Promise<void>) => Promise<void>;
+type Operations = {
+  phase: "ready" | "stopping";
+  connections: {
+    programming: "configured" | "detected" | "missing";
+    editorial: "configured" | "missing";
+    instagram: "configured" | "invalid" | "missing";
+  };
+};
 
 const templates: Record<Template, string> = {
   programming: "Programador",
   ebook: "Editor de ebooks",
   sales: "Analista de vendas",
+};
+const botScopes: Record<Template, string> = {
+  programming:
+    "Prepara patches e pode executar os testes selecionados e aprovados.",
+  ebook: "Gera rascunhos e arquivos do Estúdio.",
+  sales:
+    "Analisa os registros de campanhas, pedidos e reembolsos do perfil local.",
+};
+const connectionLabels = {
+  configured: "Configuração presente",
+  detected: "CLI local detectada",
+  invalid: "Configuração inválida",
+  missing: "Configuração ausente",
 };
 const statusText: Record<Job["status"], string> = {
   queued: "Na fila",
@@ -128,6 +150,143 @@ function filePaths(data: FormData, key: string) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+function OperationsSummary({
+  onLock,
+  stopping,
+  setStopping,
+}: {
+  onLock: () => void;
+  stopping: boolean;
+  setStopping: (value: boolean) => void;
+}) {
+  const [operations, setOperations] = useState<Operations | null>();
+  const [confirmShutdown, setConfirmShutdown] = useState(false);
+  const [requestingShutdown, setRequestingShutdown] = useState(false);
+  const [shutdownFailure, setShutdownFailure] = useState("");
+  const shutdownButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (stopping) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const refresh = async () => {
+      try {
+        const state = await json<Operations>("/operations", { signal });
+        if (!signal.aborted) {
+          setOperations(state);
+          if (state.phase === "stopping") setStopping(true);
+        }
+      } catch (failure) {
+        if (signal.aborted) return;
+        if (failure instanceof RequestError && failure.status === 401) onLock();
+        else setOperations(null);
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 10_000);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+    };
+  }, [onLock, setStopping, stopping]);
+
+  async function shutdown() {
+    setRequestingShutdown(true);
+    setShutdownFailure("");
+    try {
+      const response = await request(
+        "/operations/shutdown",
+        post({ confirmed: true }),
+      );
+      if (response.status !== 202)
+        throw new Error("Shutdown was not accepted.");
+      setStopping(true);
+    } catch (failure) {
+      if (failure instanceof RequestError && failure.status === 401) onLock();
+      else
+        setShutdownFailure(
+          "Não foi possível confirmar o encerramento do servidor.",
+        );
+    } finally {
+      setRequestingShutdown(false);
+    }
+  }
+
+  const phaseLabel = stopping
+    ? "Encerramento do servidor em andamento."
+    : operations
+      ? "Servidor local pronto."
+      : operations === undefined
+        ? "Consultando o estado das conexões."
+        : "Estado das conexões temporariamente indisponível.";
+
+  return (
+    <section className="learning-block">
+      <h2>Estado da automação local</h2>
+      <p role="status">{phaseLabel}</p>
+      {operations && !stopping && (
+        <>
+          <ul>
+            <li>
+              Programação ·{" "}
+              {connectionLabels[operations.connections.programming]}
+            </li>
+            <li>
+              Redação assistida ·{" "}
+              {connectionLabels[operations.connections.editorial]}
+            </li>
+            <li>
+              Instagram · {connectionLabels[operations.connections.instagram]}
+            </li>
+          </ul>
+          <Button
+            ref={shutdownButton}
+            variant="outline"
+            aria-expanded={confirmShutdown}
+            disabled={requestingShutdown}
+            onClick={() => {
+              setConfirmShutdown(!confirmShutdown);
+              setShutdownFailure("");
+            }}
+          >
+            Encerrar servidor
+          </Button>
+          {confirmShutdown && (
+            <>
+              <p id="server-shutdown-description">
+                As tarefas recuperáveis podem continuar quando você iniciar o
+                servidor novamente.
+              </p>
+              <div className="business-actions">
+                <Button
+                  variant="destructive"
+                  aria-describedby="server-shutdown-description"
+                  disabled={requestingShutdown}
+                  onClick={() => void shutdown()}
+                >
+                  Confirmar encerramento
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={requestingShutdown}
+                  onClick={() => {
+                    setConfirmShutdown(false);
+                    setShutdownFailure("");
+                    shutdownButton.current?.focus();
+                  }}
+                >
+                  Voltar
+                </Button>
+              </div>
+              {shutdownFailure && <p role="alert">{shutdownFailure}</p>}
+            </>
+          )}
+        </>
+      )}
+    </section>
+  );
 }
 
 function BotRunForm({
@@ -428,9 +587,11 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [proposals, setProposals] = useState<Skill[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const busy = working || stopping;
 
   const fail = useCallback(
     (failure: unknown) => {
@@ -456,6 +617,7 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
   }, []);
 
   useEffect(() => {
+    if (stopping) return;
     const controller = new AbortController();
     const refresh = () =>
       void load(controller.signal).catch((failure) => {
@@ -467,7 +629,7 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [fail, load]);
+  }, [fail, load, stopping]);
 
   const learning = useCallback(
     async (signal?: AbortSignal) => {
@@ -488,6 +650,7 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
   );
 
   useEffect(() => {
+    if (stopping) return;
     setProposals([]);
     setSkills([]);
     const controller = new AbortController();
@@ -495,9 +658,10 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
       if (!controller.signal.aborted) fail(failure);
     });
     return () => controller.abort();
-  }, [fail, learning]);
+  }, [fail, learning, stopping]);
 
   useEffect(() => {
+    if (stopping) return;
     setArtifacts([]);
     setEvents([]);
     if (!selectedRun) return;
@@ -527,10 +691,11 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [fail, selectedRun]);
+  }, [fail, selectedRun, stopping]);
 
   async function run(work: () => Promise<void>) {
-    setBusy(true);
+    if (stopping) return;
+    setWorking(true);
     setError("");
     setMessage("");
     try {
@@ -539,7 +704,7 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
     } catch (failure) {
       fail(failure);
     } finally {
-      setBusy(false);
+      setWorking(false);
     }
   }
 
@@ -573,7 +738,12 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
         <header className="learning-heading">
           <h1>Bots</h1>
         </header>
-        {error && (
+        <OperationsSummary
+          onLock={onLock}
+          stopping={stopping}
+          setStopping={setStopping}
+        />
+        {error && !stopping && (
           <p role="alert" className="learning-block">
             {error}
           </p>
@@ -618,6 +788,7 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
               Selecionar bot
               <select
                 value={selectedBot}
+                disabled={stopping}
                 onChange={(event) => setSelectedBot(event.target.value)}
               >
                 <option value="">Escolha um bot</option>
@@ -708,6 +879,7 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
                 key={job.id}
                 variant="outline"
                 aria-pressed={selectedRun === job.id}
+                disabled={stopping}
                 onClick={() => setSelectedRun(job.id)}
               >
                 {job.input.botName} · {statusText[job.status]} ·{" "}
@@ -721,10 +893,20 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
             <h2>
               {job.input.botName} · {statusText[job.status]}
             </h2>
+            <p>{botScopes[job.workflow]}</p>
             {job.currentStage && (
               <p>
-                {stages[job.currentStage] ?? job.currentStage}
+                Etapa atual · {stages[job.currentStage] ?? job.currentStage}
                 {job.attempt > 0 && ` · tentativa ${job.attempt}`}
+              </p>
+            )}
+            {job.status === "retry_wait" && job.nextAttemptAt && (
+              <p>
+                Próxima tentativa em{" "}
+                <time dateTime={job.nextAttemptAt}>
+                  {new Date(job.nextAttemptAt).toLocaleString("pt-BR")}
+                </time>
+                .
               </p>
             )}
             {job.control && (
@@ -783,6 +965,7 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
               <Button
                 key={artifact.kind}
                 variant="outline"
+                disabled={stopping}
                 onClick={() =>
                   void run(async () =>
                     downloadResponse(
@@ -823,6 +1006,7 @@ export function BotsPanel({ onLock }: { onLock: () => void }) {
                     {new Date(event.at).toLocaleString("pt-BR")} ·{" "}
                     {eventNames[event.type] ?? event.type}
                     {event.stage && ` · ${stages[event.stage] ?? event.stage}`}
+                    {event.detail && ` · ${localErrorMessage(event.detail)}`}
                   </li>
                 ))}
               </ul>

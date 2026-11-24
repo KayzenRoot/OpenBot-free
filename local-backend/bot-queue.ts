@@ -720,6 +720,7 @@ export function createBotQueue({
         if (request.method !== "POST")
           return problem(405, "METHOD_NOT_ALLOWED");
         const payload = await readObject(request);
+        if (closing) return problem(503, "BOT_QUEUE_CLOSING");
         if (payload instanceof Response) return payload;
         const name = payload.workflow;
         const config = typeof name === "string" && registry.get(name);
@@ -778,6 +779,7 @@ export function createBotQueue({
         return controlJob.immediate(id, action);
       if (action !== "resolve") return problem(405, "METHOD_NOT_ALLOWED");
       const payload = await readObject(request);
+      if (closing) return problem(503, "BOT_QUEUE_CLOSING");
       if (payload instanceof Response) return payload;
       if (payload.resolution !== "completed" && payload.resolution !== "failed")
         return problem(400, "BOT_INVALID_REVIEW");
