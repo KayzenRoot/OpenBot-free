@@ -26,6 +26,10 @@ import { executableAsset } from "./exe-static";
 import { createLocalLearning } from "./learning";
 import { localSkillProposer } from "./learning-proposer";
 import { createLearningRoutes } from "./learning-routes";
+import {
+  createLocalLifecycle,
+  createLocalOperations,
+} from "./local-operations";
 import { createLocalRoutines } from "./local-routines";
 import { createLocalMemory } from "./memory";
 import { readModelText } from "./model-stream";
@@ -68,6 +72,7 @@ type PersistentRoutes = {
   botRegistry?: ReturnType<typeof createBotRegistry>["handle"];
   botQueue?: ReturnType<typeof createBotQueue>["handle"];
   botArtifacts?: ReturnType<typeof createBotArtifacts>["handle"];
+  operations?: ReturnType<typeof createLocalOperations>;
 };
 
 function isMessage(value: unknown): value is ChatMessage {
@@ -226,6 +231,7 @@ export function startLocalBackend(options: {
           (await routes.botRegistry?.(request, pathname)) ??
           routes.botArtifacts?.(request, pathname) ??
           (await routes.botQueue?.(request, pathname)) ??
+          (await routes.operations?.(request, pathname)) ??
           (await routes.projectPilot?.(request, pathname)) ??
           (await routes.studioPilot?.(request, pathname)) ??
           (await routes.campaignKit?.(request, pathname)) ??
@@ -297,6 +303,15 @@ export function startLocalBackend(options: {
 }
 
 export function runLocalOpenBot() {
+  const lifecycle = createLocalLifecycle();
+  function shutdown() {
+    if (lifecycle.isStopping()) return;
+    void lifecycle.stop(server).then((result) => {
+      if (result === "forced")
+        console.error("Local OpenBot shutdown reached its safety limit.");
+      process.exit(result === "closed" ? 0 : 1);
+    });
+  }
   const apiKey = process.env.OPENCODE_API_KEY?.trim();
   const configuredToken = process.env.OPENBOT_LOCAL_TOKEN?.trim();
   const token = configuredToken || randomBytes(32).toString("base64url");
@@ -332,12 +347,6 @@ export function runLocalOpenBot() {
         propose: localSkillProposer(consoleKey),
       });
       const localRecordingProposer = localSkillProposer(undefined);
-      function draftRecording() {
-        void learning
-          .draftNextRecording(localRecordingProposer)
-          .catch(() => console.error("Local recording draft failed"));
-      }
-      draftRecording();
       const attachments = createAttachmentRoutes({
         dbPath: join(dataDir, "attachments.sqlite"),
         conversationExists: (id) => store.getConversation(id) !== null,
@@ -348,6 +357,7 @@ export function runLocalOpenBot() {
       const browser = createPersonalBrowser({
         profileDir: join(dataDir, "browser-profile"),
       });
+      const recorder = createBrowserRecorder();
       const businessModel = consoleKey
         ? openCodeGo(consoleKey, fetch, OPENCODE_CONSOLE_URL)
         : undefined;
@@ -358,9 +368,11 @@ export function runLocalOpenBot() {
           join(dataDir, "openai-plugins"),
       });
       let publishInstagram: ReturnType<typeof instagramPublisherFromEnv>;
+      let invalidInstagram = false;
       try {
         publishInstagram = instagramPublisherFromEnv(process.env);
       } catch {
+        invalidInstagram = true;
         console.error(
           "Instagram configuration is invalid. Local drafts are still available.",
         );
@@ -372,7 +384,6 @@ export function runLocalOpenBot() {
       const salesDirectory = join(dataDir, "sales-inbox");
       mkdirSync(salesDirectory, { recursive: true });
       const salesInbox = createSalesInbox(salesDirectory);
-      void salesInbox.tick();
       const routines = createLocalRoutines({
         dbPath: join(dataDir, "routines.sqlite"),
         async run({ routineId, prompt, signal }) {
@@ -390,16 +401,6 @@ export function runLocalOpenBot() {
           }
         },
       });
-      setInterval(() => {
-        void salesInbox.tick();
-        draftRecording();
-        void social
-          .tick()
-          .catch(() => console.error("Local social queue tick failed"));
-        void routines
-          .tick()
-          .catch(() => console.error("Local routine tick failed"));
-      }, 30_000).unref();
       const studio = createStudioPilot({
         dbPath: join(dataDir, "studio.sqlite"),
       });
@@ -439,13 +440,30 @@ export function runLocalOpenBot() {
         }),
       });
       queue = worker;
-      function advanceBots() {
-        void worker
-          .tick()
-          .catch(() => console.error("Local bot worker tick failed"));
-      }
-      advanceBots();
-      setInterval(advanceBots, 1_000).unref();
+      lifecycle.addWorker(worker.close, social.close, routines.close);
+      lifecycle.addResource(
+        browser.close,
+        recorder.close,
+        store.close,
+        attachments.close,
+        learning.close,
+        memory.close,
+        studio.close,
+        campaign.close,
+        project.close,
+        registry.close,
+        artifacts.close,
+      );
+      lifecycle.periodic("sales", salesInbox.tick, 30_000, true);
+      lifecycle.periodic(
+        "recording drafts",
+        () => learning.draftNextRecording(localRecordingProposer),
+        30_000,
+        true,
+      );
+      lifecycle.periodic("social queue", social.tick, 30_000);
+      lifecycle.periodic("routines", routines.tick, 30_000);
+      lifecycle.periodic("bot queue", worker.tick, 1_000, true);
       return {
         conversations: createConversationRoutes({
           store,
@@ -485,7 +503,7 @@ export function runLocalOpenBot() {
           },
         }),
         attachments: attachments.handle,
-        learning: createLearningRoutes(learning, createBrowserRecorder()),
+        learning: createLearningRoutes(learning, recorder),
         memory: memory.handle,
         routines: routines.handle,
         browser: browser.handle,
@@ -501,11 +519,30 @@ export function runLocalOpenBot() {
         botRegistry: registry.handle,
         botQueue: worker.handle,
         botArtifacts: artifacts.handle,
+        operations: createLocalOperations({
+          connections: {
+            programming: apiKey
+              ? "configured"
+              : executable
+                ? "detected"
+                : "missing",
+            editorial: consoleKey ? "configured" : "missing",
+            instagram: publishInstagram
+              ? "configured"
+              : invalidInstagram
+                ? "invalid"
+                : "missing",
+          },
+          isStopping: lifecycle.isStopping,
+          requestShutdown: shutdown,
+        }),
       };
     },
   });
   console.log(`OpenBot local API listening on ${server.url.origin}`);
   if (!configuredToken) console.log(`Local access token: ${token}`);
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
   return server;
 }
 

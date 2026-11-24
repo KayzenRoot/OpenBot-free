@@ -185,5 +185,13 @@ export function createBrowserRecorder(options?: {
     if (current?.id === id && !current.active) current = null;
   }
 
-  return { start, stop, clear, status };
+  async function close() {
+    if (!current) return;
+    const recording = current;
+    markClosed(recording);
+    await recording.browser?.close();
+    current = null;
+  }
+
+  return { start, stop, clear, status, close };
 }
